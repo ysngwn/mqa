@@ -9,18 +9,12 @@ library(factoextra)
 library(cluster)
 
 
-doutores <- read.csv('doutores_processado.csv')
+doutores <- read.csv('doutores_processado_1000.csv')
 summary(doutores)
 
 doutores_filtered <- doutores[, c('DuracaoDoutorado', 'Publicacoes', 'IdadeAcademica', 'HistoricoFiliacoesEmIESInternacional', 'UltimaFiliacaoEmIES')] 
-# scale(doutores_filtered)
+scale(doutores_filtered)
 summary(doutores_filtered)
-
-
-#doutores_filtered2$DuracaoDoutorado <- rescale(doutores_filtered$DuracaoDoutorado)
-#doutores_filtered2$Publicacoes <- rescale(doutores_filtered$Publicacoes)
-#doutores_filtered2$IdadeAcademica <- rescale(doutores_filtered$IdadeAcademica)
-#summary(doutores_filtered2)
 
 
 # matriz de correlacao
@@ -37,8 +31,4 @@ gower_dist <- daisy(doutores_filtered, metric = "gower")
 kmedoids <- pam(gower_dist, k = 3)
 
 # Plotting
-fviz_cluster(list(cluster = kmedoids$cluster, data = doutores_filtered), geom = "point", ellipse.type = "norm")
-fviz_cluster(list(cluster = kmedoids$cluster, data = doutores_filtered), geom = "point", ellipse.type = "convex")
-fviz_cluster(list(cluster = kmedoids$cluster, data = doutores_filtered), geom = "point", ellipse.type = "t")
-
 clusplot(kmedoids, main = "Cluster Plot", color = TRUE, shade = TRUE, labels = 2, lines = 0)
