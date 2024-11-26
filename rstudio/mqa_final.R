@@ -11,8 +11,8 @@ library(FactoMineR)
 library("data.table")    
 library(psych)
 
-doutores <- fread("doutores_processado_1000.csv", 
-                  select = c("DuracaoDoutorado", "Publicacoes", "IdadeAcademica", "HistoricoFiliacoesEmIESInternacional", "UltimaFiliacaoEmIES")) 
+doutores <- fread("doutores_processado_2000_com_todos_int.csv", 
+                  select = c("DuracaoDoutorado", "Publicacoes", "IdadeAcademica", "HistoricoFiliacoesEmIESInternacional", "UltimaFiliacaoEmIES", "ExclusividadeDoutorado", "Genero")) 
 summary(doutores)
 head(doutores)
 
@@ -43,9 +43,8 @@ biplot(PCAdente)
 
 
 
-scale(doutores_UltimaFiliacaoEmIES_1)
-doutores_UltimaFiliacaoEmIES_1$UltimaFiliacaoEmIES <- NULL
-data.pca <- princomp(doutores_UltimaFiliacaoEmIES_1)
+scale(doutores)
+data.pca <- princomp(doutores)
 summary(data.pca)
 
 data.pca$loadings[, 1:2]
