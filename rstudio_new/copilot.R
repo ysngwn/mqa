@@ -8,8 +8,6 @@
 # UltimaFiliacaoEmIES
 # PrimeiraAreaNumeric
 
-# PODIA TER SIDO FEITO:
-# COMPARAR POR QUANTIDADE DE IES INTERNACIONAL
 
 library(data.table)
 library(ggplot2)
@@ -18,8 +16,13 @@ library(caret)
 library(pROC)
 library(rpart)
 library(rpart.plot)
+library(factoextra)
+library(FactoMineR)
+library(factoextra)
 
-doutores_com_outlier <- fread("doutores_2000_com_area_numerico.csv", 
+
+
+doutores_com_outlier <- fread("doutores_processado_2000_final.csv", 
                   select = c("DuracaoDoutorado", "Genero", "ExclusividadeDoutorado", "Publicacoes", "IdadeAcademica", "HistoricoFiliacoesEmIESInternacional", "UltimaFiliacaoEmIES", "PrimeiraAreaNumeric"))
 
 
@@ -41,10 +44,10 @@ remove_outliers <- function(data, column_name) {
 
 doutores <- remove_outliers(doutores_com_outlier, "IdadeAcademica")
 doutores <- remove_outliers(doutores_com_outlier, "DuracaoDoutorado")
-doutores <- remove_outliers(doutores_com_outlier, "Publicacoes")
+doutores <- remove_outliers(doutores, "Publicacoes")
 
 dim(doutores_com_outlier) # 2062
-dim(doutores) # 1960
+dim(doutores) # 1856
 
 
 
@@ -53,20 +56,24 @@ dim(doutores) # 1960
 #########################################################################
 
 
-
 # ANÁLISE DE FREQUÊNCIA DE CADA VARIÁVEL
 
 table(doutores$DuracaoDoutorado)
 ggplot(doutores, aes(x = DuracaoDoutorado)) + geom_bar()
 table(doutores$Genero)
+ggplot(doutores, aes(x = Genero)) + geom_bar()
 table(doutores$ExclusividadeDoutorado)
+ggplot(doutores, aes(x = ExclusividadeDoutorado)) + geom_bar()
 table(doutores$Publicacoes)
 ggplot(doutores, aes(x = Publicacoes)) + geom_bar()
 table(doutores$IdadeAcademica)
 ggplot(doutores, aes(x = IdadeAcademica)) + geom_bar()
 table(doutores$HistoricoFiliacoesEmIESInternacional)
+ggplot(doutores, aes(x = HistoricoFiliacoesEmIESInternacional)) + geom_bar()
 table(doutores$UltimaFiliacaoEmIES)
+ggplot(doutores, aes(x = UltimaFiliacaoEmIES)) + geom_bar()
 table(doutores$PrimeiraAreaNumeric)
+ggplot(doutores, aes(x = PrimeiraAreaNumeric)) + geom_bar()
 
 # 'CIENCIAS BIOLOGICAS': 0, 
 # 'CIENCIAS EXATAS E DA TERRA': 1, 
@@ -90,7 +97,7 @@ ggplot(doutores, aes(x = DuracaoDoutorado, color = as.factor(HistoricoFiliacoesE
     y = "Densidade",
     color = "Filiação em\nIES Internacional\n(0 = Não, 1 = Sim)"
   ) +
-  theme_minimal() # 
+  theme_minimal() # ???????? tive duvida
 table(doutores$Genero, doutores$HistoricoFiliacoesEmIESInternacional)
 table(doutores$ExclusividadeDoutorado, doutores$HistoricoFiliacoesEmIESInternacional)
 table(doutores$Publicacoes, doutores$HistoricoFiliacoesEmIESInternacional)
@@ -155,53 +162,75 @@ print(desempenho4)
 # Regressão Logistica
 #########################################################################
 
-doutores$PrimeiraAreaNumeric <- as.factor(doutores$PrimeiraAreaNumeric)
-doutores$Genero <- as.factor(doutores$Genero)
-doutores$ExclusividadeDoutorado <- as.factor(doutores$ExclusividadeDoutorado)
-doutores$UltimaFiliacaoEmIES <- as.factor(doutores$UltimaFiliacaoEmIES)
 
-logit <- glm(HistoricoFiliacoesEmIESInternacional ~ DuracaoDoutorado + Genero + ExclusividadeDoutorado + Publicacoes + IdadeAcademica + UltimaFiliacaoEmIES + PrimeiraAreaNumeric, family=binomial(link="logit"), data=doutores) 
+
+set.seed(123)
+
+# Teste e treino
+train_indices <- sample(1:nrow(doutores), size = 0.7 * nrow(doutores))
+doutores_treino <- doutores[train_indices, ]
+doutores_teste <- doutores[-train_indices, ]
+
+# Variaveis categoricas
+doutores_treino$PrimeiraAreaNumeric <- as.factor(doutores_treino$PrimeiraAreaNumeric)
+doutores_treino$Genero <- as.factor(doutores_treino$Genero)
+doutores_treino$ExclusividadeDoutorado <- as.factor(doutores_treino$ExclusividadeDoutorado)
+doutores_treino$UltimaFiliacaoEmIES <- as.factor(doutores_treino$UltimaFiliacaoEmIES)
+
+doutores_teste$PrimeiraAreaNumeric <- as.factor(doutores_teste$PrimeiraAreaNumeric)
+doutores_teste$Genero <- as.factor(doutores_teste$Genero)
+doutores_teste$ExclusividadeDoutorado <- as.factor(doutores_teste$ExclusividadeDoutorado)
+doutores_teste$UltimaFiliacaoEmIES <- as.factor(doutores_teste$UltimaFiliacaoEmIES)
+
+# Modelo
+logit <- glm(HistoricoFiliacoesEmIESInternacional ~ DuracaoDoutorado + Genero + ExclusividadeDoutorado + Publicacoes + IdadeAcademica + UltimaFiliacaoEmIES + PrimeiraAreaNumeric, 
+             family = binomial(link = "logit"), 
+             data = doutores_treino)
 summary(logit)
+
+# Predict
+previsoes <- predict(logit, newdata = doutores_teste, type = "response")
+previsoes_classes <- ifelse(previsoes > 0.5, 1, 0)
+
+# Matriz de confusao
+real_classes <- doutores_teste$HistoricoFiliacoesEmIESInternacional
+matriz_confusao_caret <- confusionMatrix(factor(previsoes_classes), factor(real_classes))
+print(matriz_confusao_caret)
+
 
 
 #########################################################################
 # Arvore de Decisao
 #########################################################################
 
-# Dividir o dataset em treino e teste
+
+
 set.seed(123)
-trainIndex <- sample(1:nrow(doutores), size = 0.8 * nrow(doutores))
+
+# Treino e teste
+trainIndex <- sample(1:nrow(doutores), size = 0.7 * nrow(doutores))
 train <- doutores[trainIndex, ]
 test <- doutores[-trainIndex, ]
 
-# Construir a árvore de decisão
+# Arovre
 modelo_arvore <- rpart(HistoricoFiliacoesEmIESInternacional ~ DuracaoDoutorado + Genero + ExclusividadeDoutorado + Publicacoes + IdadeAcademica + UltimaFiliacaoEmIES + PrimeiraAreaNumeric,
                        data = train, method = "class")
 
-# Visualizar o modelo
 print(modelo_arvore)
-
-# Plotar a árvore
 rpart.plot(modelo_arvore, type = 3, extra = 104, fallen.leaves = TRUE,
            main = "Árvore de Decisão para Prever Mobilidade Internacional")
 
 
-# Fazer previsões nos dados de teste
+# Predict
 predicoes <- predict(modelo_arvore, newdata = test, type = "class")
 
-# Matriz de confusão
-library(caret)
-confusionMatrix(predicoes, test$HistoricoFiliacoesEmIESInternacional)
 
+# Matriz de confusao
+test$HistoricoFiliacoesEmIESInternacional <- factor(test$HistoricoFiliacoesEmIESInternacional)
+predicoes <- factor(predicoes, levels = levels(test$HistoricoFiliacoesEmIESInternacional))
 
-# Ajuste de hiperparâmetros
-modelo_arvore_tuned <- rpart(HistoricoFiliacoesEmIESInternacional ~ DuracaoDoutorado + Genero + ExclusividadeDoutorado + Publicacoes + IdadeAcademica + UltimaFiliacaoEmIES + PrimeiraAreaNumeric,
-                             data = train, method = "class",
-                             control = rpart.control(cp = 0.01, maxdepth = 5))
-
-# Visualizar a árvore ajustada
-rpart.plot(modelo_arvore_tuned, type = 3, extra = 104, fallen.leaves = TRUE,
-           main = "Árvore de Decisão Ajustada")
+confMatrix <- confusionMatrix(predicoes, test$HistoricoFiliacoesEmIESInternacional)
+print(confMatrix)
 
 
 
@@ -210,29 +239,56 @@ rpart.plot(modelo_arvore_tuned, type = 3, extra = 104, fallen.leaves = TRUE,
 #########################################################################
 
 
+
 # Pré-processamento: Selecionar variáveis numéricas e normalizar
 numerical_data <- doutores[, .(DuracaoDoutorado, Publicacoes, IdadeAcademica)]
 numerical_data <- scale(numerical_data)
 
-# Aplicar PCA
-pca_result <- prcomp(numerical_data, center = TRUE, scale. = TRUE)
-summary(pca_result)
-biplot(pca_result)
+pca=PCA(numerical_data, graph=TRUE)
 
-# Aplicar Análise Fatorial
-# Definir o número de fatores (por exemplo, 2)
-num_factors <- 2
-factor_result <- factanal(numerical_data, factors = num_factors, rotation = "varimax")
-print(factor_result)
+autovalores=get_eigenvalue(pca)
+autovalores
+fviz_eig(pca, addlabels=TRUE, ylim = c(0,50))
 
-# Visualização dos resultados da PCA
-pca_data <- as.data.table(pca_result$x)
-pca_data[, HistoricoFiliacoesEmIESInternacional := doutores$HistoricoFiliacoesEmIESInternacional]
+variaveis=get_pca_var(pca)
+head(variaveis$coord)
 
-ggplot(pca_data, aes(x = PC1, y = PC2, color = HistoricoFiliacoesEmIESInternacional)) +
-  geom_point() +
-  labs(title = "PCA dos Doutorandos", x = "Componente Principal 1", y = "Componente Principal 2")
 
-# Visualização dos resultados da Análise Fatorial
-factor_loadings <- as.data.table(factor_result$loadings[, 1:num_factors])
-print(factor_loadings)
+
+
+#########################################################################
+# K-Means
+#########################################################################
+
+
+doutores_com_outlier <- fread("doutores_processado_2000_final.csv", 
+                              select = c("DuracaoDoutorado", "Genero", "ExclusividadeDoutorado", "Publicacoes", "IdadeAcademica", "HistoricoFiliacoesEmIESInternacional", "UltimaFiliacaoEmIES", "PrimeiraAreaNumeric")
+                              , nrows= 300)
+
+doutores <- remove_outliers(doutores_com_outlier, "IdadeAcademica")
+doutores <- remove_outliers(doutores, "DuracaoDoutorado")
+doutores <- remove_outliers(doutores, "Publicacoes")
+
+fviz_nbclust(doutores, kmeans, method = "wss")+
+  geom_vline(xintercept = 4, linetype = 2)
+
+set.seed(123)
+km.res=kmeans(doutores, 4, nstart=25)
+print(km.res)
+
+
+
+fviz_cluster(km.res, data=doutores,
+             palette = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"),
+             ellipse.type="euclid",
+             star.plot=TRUE,
+             repel=FALSE,
+             ggtheme=theme_minimal()
+)
+
+
+# CONCLUSAO: 
+# HISTORICO IES INTERN TENDE A TER MAIS PUBLICACOES E FICAR MAIS TEMPO NA ACADEMIA
+
+# PODIA TER SIDO FEITO:
+# COMPARAR POR QUANTIDADE DE IES INTERNACIONAL
