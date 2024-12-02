@@ -47,7 +47,7 @@ doutores <- remove_outliers(doutores_com_outlier, "DuracaoDoutorado")
 doutores <- remove_outliers(doutores, "Publicacoes")
 
 dim(doutores_com_outlier) # 2062
-dim(doutores) # 1856
+dim(doutores) # 1677
 
 
 
@@ -97,7 +97,7 @@ ggplot(doutores, aes(x = DuracaoDoutorado, color = as.factor(HistoricoFiliacoesE
     y = "Densidade",
     color = "Filiação em\nIES Internacional\n(0 = Não, 1 = Sim)"
   ) +
-  theme_minimal() # ???????? tive duvida
+  theme_minimal() # ????????
 table(doutores$Genero, doutores$HistoricoFiliacoesEmIESInternacional)
 table(doutores$ExclusividadeDoutorado, doutores$HistoricoFiliacoesEmIESInternacional)
 table(doutores$Publicacoes, doutores$HistoricoFiliacoesEmIESInternacional)
@@ -292,3 +292,4 @@ fviz_cluster(km.res, data=doutores,
 
 # PODIA TER SIDO FEITO:
 # COMPARAR POR QUANTIDADE DE IES INTERNACIONAL
+
